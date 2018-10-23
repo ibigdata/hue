@@ -17,6 +17,7 @@
 # limitations under the License.
 
 import json
+import logging
 
 from datetime import datetime
 
@@ -1149,7 +1150,7 @@ class TestDocument2ImportExport(object):
       name='query.sql',
       type='query-hive',
       owner=self.user,
-      data={'description': 'original_query'},
+      data=json.dumps({'description': 'original_query'}),
       parent_directory=self.home_dir
     )
 

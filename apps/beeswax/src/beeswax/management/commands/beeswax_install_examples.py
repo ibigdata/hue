@@ -64,13 +64,9 @@ class Command(BaseCommand):
     exception = None
 
     # Documents will belong to this user but we run the install as the current user
-    try:
-      sample_user = install_sample_user()
-      self._install_queries(sample_user, app_name)
-      self._install_tables(user, app_name, db_name, tables)
-    except Exception, ex:
-      exception = ex
-
+    sample_user = install_sample_user()
+    self._install_queries(sample_user, app_name)
+    self._install_tables(user, app_name, db_name, tables)
     Document.objects.sync()
 
     if exception is not None:
@@ -94,10 +90,7 @@ class Command(BaseCommand):
 
     for table_dict in table_list:
       table = SampleTable(table_dict, app_name, db_name)
-      try:
-        table.install(django_user)
-      except Exception, ex:
-        raise InstallException(_('Could not install table: %s') % ex)
+      table.install(django_user)
 
   def _install_queries(self, django_user, app_name):
     design_file = file(os.path.join(beeswax.conf.LOCAL_EXAMPLES_DATA_DIR.get(), 'designs.json'))
@@ -169,18 +162,13 @@ class SampleTable(object):
       return False
     except Exception:
       query = hql_query(self.hql)
-      try:
-        db.use(self.db_name)
-        results = db.execute_and_wait(query)
-        if not results:
-          msg = _('Error creating table %(table)s: Operation timeout.') % {'table': self.name}
-          LOG.error(msg)
-          raise InstallException(msg)
-        return True
-      except Exception, ex:
-        msg = _('Error creating table %(table)s: %(error)s.') % {'table': self.name, 'error': ex}
+      db.use(self.db_name)
+      results = db.execute_and_wait(query)
+      if not results:
+        msg = _('Error creating table %(table)s: Operation timeout.') % {'table': self.name}
         LOG.error(msg)
         raise InstallException(msg)
+      return True
 
   def load_partition(self, django_user, partition_spec, filepath):
     """

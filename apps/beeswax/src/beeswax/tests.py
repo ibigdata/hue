@@ -2122,7 +2122,8 @@ def test_history_page():
 
   client = make_logged_in_client()
   test_user = User.objects.get(username='test')
-
+  LOG.warn(HQL)
+  LOG.warn(test_user)
   query, created = SavedQuery.objects.get_or_create(
     type=HQL,
     owner=test_user,
@@ -2130,7 +2131,6 @@ def test_history_page():
     name='Test query',
     desc='Description',
   )
-
   QueryHistory.objects.get_or_create(
       owner=test_user,
       query='SELECT',

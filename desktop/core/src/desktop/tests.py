@@ -237,12 +237,13 @@ def test_dump_config():
   response = client_not_me.get(reverse('desktop.views.dump_config'))
   assert_true("You must be a superuser" in response.content, response.content)
 
+  prev_env_conf = os.environ["HUE_CONF_DIR"]
   try:
     os.environ["HUE_CONF_DIR"] = "/tmp/test_hue_conf_dir"
     resp = c.get(reverse('desktop.views.dump_config'))
     assert_true('/tmp/test_hue_conf_dir' in resp.content, resp)
   finally:
-    del os.environ["HUE_CONF_DIR"]
+    os.environ["HUE_CONF_DIR"] = prev_env_conf
 
 def hue_version():
   global HUE_VERSION
@@ -755,6 +756,7 @@ def test_config_check():
         for old_conf in reset:
           old_conf()
 
+      prev_env_conf = os.environ["HUE_CONF_DIR"]
       try:
         # Set HUE_CONF_DIR and make sure check_config returns appropriate conf
         os.environ["HUE_CONF_DIR"] = "/tmp/test_hue_conf_dir"
@@ -769,7 +771,7 @@ def test_config_check():
         resp = cli.get('/desktop/debug/check_config')
         assert_true('/tmp/test_hue_conf_dir' in resp.content, resp)
       finally:
-        del os.environ["HUE_CONF_DIR"]
+        os.environ["HUE_CONF_DIR"] = prev_env_conf
         desktop.views.validate_by_spec = desktop.views.real_validate_by_spec
 
 def test_last_access_time():
@@ -1384,6 +1386,7 @@ def test_collect_validation_messages_default():
     os.remove(configspec.name)
 
 def test_collect_validation_messages_extras():
+  LOG = logging.getLogger(__name__)
   try:
     # Generate the spec file
     configspec = generate_configspec()
@@ -1444,15 +1447,16 @@ def test_db_migrations_sqlite():
       del DATABASES[name]
 
 def test_db_migrations_mysql():
+  LOG = logging.getLogger(__name__)
   if desktop.conf.DATABASE.ENGINE.get().find('mysql') < 0:
-    raise SkipTest
-  try:
-    subprocess.check_output('which mysql', shell=True)
-  except:
-    LOG.warn('mysql not installed')
-    raise SkipTest
+    raise SkipTest  
   versions = ['5_' + str(i) for i in range(7, 16)]
   os.putenv('PATH', '$PATH:/usr/local/bin')
+  try:
+    subprocess.check_output('type mysql', shell=True)
+  except subprocess.CalledProcessError as e:
+    LOG.warn('mysql not found')
+    raise SkipTest
   for version in versions:
     file_name = 'hue_' + version + '_mysql.sql'
     name = 'hue_' + version + '_' + uuid.uuid4().hex
@@ -1471,8 +1475,11 @@ def test_db_migrations_mysql():
       'CONN_MAX_AGE': desktop.conf.DATABASE.CONN_MAX_AGE.get(),
     }
     try:
-      os.system('mysql -u%(USER)s -p%(PASSWORD)s -e "CREATE DATABASE %(SCHEMA)s"' % DATABASES[name]) # No way to run this command with django
-      os.system('mysql -u%(USER)s -p%(PASSWORD)s %(SCHEMA)s < %(PATH)s' % DATABASES[name])
+      subprocess.check_output('mysql -u%(USER)s -p%(PASSWORD)s -e "CREATE DATABASE %(SCHEMA)s"' % DATABASES[name], stderr=subprocess.STDOUT, shell=True) # No way to run this command with django
+      subprocess.check_output('mysql -u%(USER)s -p%(PASSWORD)s %(SCHEMA)s < %(PATH)s' % DATABASES[name], stderr=subprocess.STDOUT, shell=True)
       call_command('migrate', '--fake-initial', '--database=%(SCHEMA)s' % DATABASES[name])
+    except subprocess.CalledProcessError as e:
+      LOG.warn('stderr: {}'.format(e.output))
+      raise e
     finally:
       del DATABASES[name]

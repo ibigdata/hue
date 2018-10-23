@@ -24,6 +24,7 @@ from itertools import imap, izip
 from operator import itemgetter
 
 from django.utils.translation import ugettext as _
+from django.contrib.auth.models import User
 
 from desktop.lib import thrift_util
 from desktop.conf import DEFAULT_USER
@@ -620,7 +621,12 @@ class HiveServerClient:
 
     encoded_status, encoded_guid = HiveServerQueryHandle(secret=sessionId.secret, guid=sessionId.guid).get()
     properties = json.dumps(res.configuration)
-
+    try:
+      LOG.warn(user.id)
+      test_user = User.objects.get(username=user.username)
+      LOG.warn(test_user.id)
+    except Exception, e:
+      LOG.exception(e)
     session = Session.objects.create(
         owner=user,
         application=self.query_server['server_name'],

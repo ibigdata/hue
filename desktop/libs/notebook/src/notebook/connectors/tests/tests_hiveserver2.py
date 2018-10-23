@@ -483,7 +483,7 @@ class TestHiveserver2ApiWithHadoop(BeeswaxSampleProvider):
 
 
   def setUp(self):
-    self.client.post('/beeswax/install_examples')
+    #self.client.post('/beeswax/install_examples')
 
     self.user = User.objects.get(username='test')
     add_to_group('test')
@@ -618,6 +618,12 @@ class TestHiveserver2ApiWithHadoop(BeeswaxSampleProvider):
 
 
   def test_explain(self):
+    try:
+      LOG.warn(self.user.id)
+      test_user = User.objects.get(username=self.user.username)
+      LOG.warn(self.user.id)
+    except Exception, e:
+      LOG.exception(e)
     # Hive 2 with Tez set hive.explain.user to true by default, but this test is expecting output when this setting
     # is set to false.
     doc = self.create_query_document(owner=self.user, statement=self.statement)
@@ -625,6 +631,11 @@ class TestHiveserver2ApiWithHadoop(BeeswaxSampleProvider):
     snippet = self.get_snippet(notebook, snippet_idx=0)
     snippet['properties']['settings'].append({"key": "hive.explain.user", "value": "false"})
 
+    try:
+      test_user = User.objects.get(username=self.user.username)
+      LOG.warn(self.user.id)
+    except Exception, e:
+      LOG.exception(e)
     response = self.client.post(reverse('notebook:explain'),
                                 {'notebook': notebook.get_json(), 'snippet': json.dumps(snippet)})
 
